@@ -12,9 +12,9 @@ I originally researched various methods of map generation and started implementi
 
 ### 1. Biome Map Interpretation
 
-A biome map (image) is provided, where each color represents a different biome.
+This system can be expanded to several different biomes. 
 
-**Example:**
+**Biome Examples:**
 
 - 🟩 Green → Forest
 - ⬜ White → Snow
