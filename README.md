@@ -6,6 +6,8 @@ This project implements a biome-based procedural generation system in Unity. It 
 
 I plan to utilize a system like this for my planned open-world RPG game. I am aiming to have a very large 2D topdown map with a size comparable to that of a game like Skyrim. Hand-placing each tile would take ages, so I need to create a system that will ultimately create the map for me. This biome-based generation is only the first step, eventually I will get into the object, terrain, collision, enemy, and POI (points of interest) placement all within this system. I already have several ideas for how to accomplish this.
 
+I originally researched various methods of map generation and started implementing a cellular automata generation method, which was great for randomized procedural generation. I had a working implementation, but realized to get a specifically designed map result, doing some sort of image pixel to unity tile method would be simpler, so the cellular automata method has been scrapped.
+
 ## How It Works
 
 ### 1. Biome Map Interpretation
