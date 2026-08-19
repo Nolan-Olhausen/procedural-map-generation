@@ -80,10 +80,18 @@ storage**; the sailing world costs only its shells on disk.
 - **World map UI** renders the layout map with a live ship marker —
   chart and sea are the same data, so map navigation is honest by
   construction.
-- **Ocean sizing is time-based**, like the island sizing rule: pick a
-  crossing budget between neighboring islands (suggested 3–5 min at sail)
-  → gap ≈ budget × ship speed (e.g. ~3,000–5,500 tiles at ~18 tiles/sec).
-  A full archipelago's sailing world lands around 15k–25k tiles across.
+- **Ocean sizing rule** (companion to the island sizing rule): the sailing
+  world's edge-to-edge crossing takes **30–45 minutes at sailing speed**.
+  Exact tile dimensions are derived, not chosen, via the dependency chain:
+
+  > sailing camera zoom (set by how the ship reads on screen) →
+  > readable ship speed (screen-crossing rule: ~3+ seconds to cross the
+  > viewport) → ocean dimensions (30–45 min × speed) → sea scale / shell
+  > downsample ratio.
+
+  All four resolve together from the sailing prototype (ship sprite size +
+  zoom feel); none are whiteboard decisions. Island gaps then fall out of
+  the layout map's positions within the sized ocean.
 - Perf isolation: sailing never streams full island data; islands never
   stream ocean.
 
@@ -142,11 +150,11 @@ sail) can apply once ship speed is set.
 
 ## Open Knobs
 
-- **Ship speed(s)** — and whether wind/upgrades modify it; added to
-  `movement-speeds.md` when decided. Fixes the gap-sizing numbers in
-  Bounds & Navigation.
-- **Sea scale factor** — how compressed the sailing world is relative to
-  land (sets shell downsample ratio and effective ocean size).
+- **The zoom/speed/size/scale bundle** — resolved together by the sailing
+  prototype per the dependency chain in Bounds & Navigation (zoom → ship
+  speed → ocean dimensions → sea scale). Ship speed lands in
+  `movement-speeds.md` once set; wind/upgrade modifiers decided with ship
+  combat.
 - Sea encounter/event tables and densities; ship combat design.
 - Whether/when to add free anchoring on top of docks-only (see Anchoring &
   Transitions).
