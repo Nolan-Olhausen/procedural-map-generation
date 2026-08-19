@@ -62,6 +62,24 @@ off-limits.** Enforced by the pipeline on every bake, not by authoring care.
 2. **Ramp placement pass** — every plateau gets ≥1 connection toward its
    lower neighbor, sited on straight cliff runs long enough for the
    ramp/stair art, avoiding POI footprints.
+
+   **Ramp frequency and width scale inversely with local steepness**,
+   derived from the pre-quantization height field's gradient (no extra
+   authoring input):
+   - Gentle terrain (plains, foothills): frequent, wide ramps — broad
+     grassy slopes so casual that low ledges read as rolling terrain, not
+     obstacles. Wide ramps also serve as the natural corridors where roads
+     will cross level changes.
+   - Steep terrain (mountains): sparse, narrow ramps — one or two tight
+     carved-stair passages per plateau, making ascent a deliberate
+     route-finding exercise. Narrow stairs stay footpath-only.
+
+   Local slope (rather than biome ID alone) drives this so a mountain
+   biome's gentle foothills still get casual ramps while its peaks stay
+   sparse. Minimum ramp width is set by the art pack's stair/slope tiles
+   (likely 2–3 tiles). The scaling makes the friction economy natural:
+   flat land contributes ~zero detour factor, mountains carry nearly all
+   of the sizing rule's required friction.
 3. **Connectivity validation** — flood-fill from the coast/spawn. Any
    unreached walkable region → **auto-carve a ramp** at the shortest cliff
    segment separating it from reachable land; hard-fail with coordinates if
@@ -107,4 +125,5 @@ constraints in the cleanup pass.
 | Minimum terrace width               | Chunkiness of cliffs; autotile safety   |
 | Altitude rules (level → biome)      | Snowline/rockline heights per island    |
 | Ramps per plateau + siting bias     | Traversal friction (detour factor)      |
+| Slope→ramp frequency/width curve    | How casual vs. deliberate climbs feel   |
 | Off-limits markers                  | Authored unreachable areas              |
