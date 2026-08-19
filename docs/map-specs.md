@@ -1,0 +1,132 @@
+# World & Map Specification
+
+Status: **Draft** — captures design decisions to date; numbers marked
+*(provisional)* still need validation via the map preview tool and playtesting.
+
+## Vision
+
+A top-down 2D pixel RPG: Pokémon Gen-4-style presentation (16×16 tiles,
+grid-ish movement) with Skyrim-style structure (open world, classes, skills,
+quests, NPCs, story by our DM collaborator). The world is an **archipelago**:
+several large islands connected by open-ocean sailing (ship combat, sailing
+events, boarding, anchoring at islands).
+
+## Core Decisions
+
+### 1. One fixed, authored world — baked offline, streamed at runtime
+
+Unlike Minecraft (different world per player), every player gets the same
+story world. Therefore:
+
+- The procedural generation pipeline runs **offline as a tool**, not in the
+  shipped game. It can be slow, run expensive global passes (rivers, roads,
+  quest-connectivity guarantees), and its output can be inspected and
+  hand-edited before players ever see it.
+- The game ships the **baked result** as chunked binary map files. Runtime is
+  purely chunk streaming around the player — no generation logic in-game.
+- Persistent world changes (looted chests, cleared camps) live in a small
+  save-file **delta layer** on top of the static map.
+- Storage is a non-issue: tile maps compress extremely well (RLE/zstd), and
+  ocean chunks are generated from a trivial function rather than stored.
+  Expect tens-to-hundreds of MB total, not GB.
+
+### 2. Scale
+
+- **Tile size:** 16×16 px.
+- **Island size target:** ~45 minutes to walk across at 3.5 tiles/sec →
+  **~9,400 tiles across** *(provisional)* for a full-size island (~85M tiles).
+  See `movement-speeds.md` for crossing times at each gait.
+- Straight-line time is the design target; terrain friction (cliffs, rivers,
+  encounters, POIs) stretches experienced traversal well beyond it, as in
+  Skyrim.
+- Islands may vary in size; a half-scale **starter island** is both a common
+  structure and the natural test bed for the generation pipeline.
+- The **ocean** provides the "vast world" feeling nearly for free — procedural
+  water + encounters, no authored content per tile. Fewer, denser islands beat
+  one giant continent: every tile not generated is a tile that doesn't need to
+  be made interesting.
+- Each island is its own map file/space; the ocean is its own layer connecting
+  them.
+
+### 3. Authoring model: coarse control map, not per-tile painting
+
+The old 1 pixel = 1 tile color-map approach is replaced by a **low-res control
+map**: 1 pixel = one region of roughly 16×16 to 32×32 tiles *(resolution is a
+knob, and can vary per area)*. For a ~9,400-tile island that's a paintable
+~300–600 px image.
+
+- Pixel color/channels encode **intent**: land vs. sea, biome, rough
+  elevation, and anchor points for major POIs.
+- **Pixel color = "biome pressure in this area," not "biome of this tile."**
+  Per-tile biome assignment is an *output* of the pipeline.
+- Smooth biome blending does **not** come from image resolution. It comes
+  from, in order:
+  1. **Interpolation** — sample the control map bilinearly so borders become
+     continuous gradients at tile granularity (e.g. "68% forest / 32% snow").
+  2. **Noise dithering** — each tile resolves its blend value against a noise
+     field, producing organic interlocking frontiers (snow fingers into
+     forest) instead of hard lines or mushy gradients.
+  3. **Autotile transition pieces** from the art pack clean up seams at the
+     individual-tile level.
+- Per-tile overrides remain available where exact control is needed (that's
+  what POI stamps are).
+
+### 4. Generation pipeline (offline)
+
+Runs in this order:
+
+1. **Coastline refinement** — upscale the painted island silhouette, then
+   perturb the edge with domain-warped fBm noise on a signed distance field:
+   the authored shape with natural coves and beaches.
+2. **Terrain fields** — layered simplex noise for elevation/moisture within
+   control-map constraints; biome borders dithered as above.
+3. **Global features** — rivers traced downhill, lakes in basins, roads
+   pathfound (A* with slope/terrain costs) between towns.
+4. **Autotiling** — pipeline works in *logical* terrain ("grass", "water",
+   "cliff-north-edge"); a final pass maps logic → art tiles using standard
+   blob/Wang autotiling. The art pack's parallel per-biome tile variants slot
+   in here: one autotiling ruleset indexed by biome.
+5. **POI stamping** — two tiers:
+   - **Major POIs** (cities, story locations, major lakes): hand-built tile
+     prefabs ("stamps") placed at authored anchor points; pipeline flattens
+     the footprint and connects roads.
+   - **Minor POIs** (camps, crypts, ponds, shrines, ransacked villages):
+     placed Minecraft-style — deterministically hash each map region to decide
+     spawn/variant/rotation, with minimum-spacing and valid-terrain
+     constraints. 5–10 hand-made variants per type gives variety without
+     hand-placement.
+6. **Scatter pass** — trees, rocks, flowers via noise thresholds +
+   Poisson-disk spacing so vegetation clumps naturally.
+
+### 5. Runtime
+
+- Stream pre-baked chunks from disk around the player (and around the ship at
+  sea). Chunk size TBD (16×16 or 32×32 tiles typical).
+- Multiple tile layers (ground, water, decoration/overlay) per chunk.
+- Lessons from the old `ChunkHandler.cs` prototype: no `GameObject.Find` for
+  chunk lookups, no per-tile `GetPixel`, no full Grid object per chunk —
+  runtime is "read binary, blit tiles."
+
+## First Milestone: Map Preview Tool
+
+Before any in-engine work: a tool that runs pipeline steps 1–3 and renders a
+whole-island PNG (1 px per tile) in seconds. World generation quality is a
+function of iteration speed — tweak parameters/control map, regenerate, look.
+Then add later pipeline passes, then the chunk-file exporter, and only then
+the in-engine streaming renderer.
+
+Also early (parallel, ~2 hours): the **flat-map speed prototype** to lock the
+movement values in `movement-speeds.md`.
+
+## Open Questions
+
+- Engine confirmation (Unity assumed; the offline pipeline/tooling can be
+  engine-agnostic regardless).
+- Chunk dimensions and on-disk chunk file format.
+- Control map channel layout (how biome/elevation/anchors are encoded).
+- Ocean generation details: sailing-layer scale, island approach transitions,
+  sea encounters/events.
+- How POI interiors (caves, crypts, buildings) load — separate maps vs.
+  in-world.
+- Exact biome list (art pack supports parallel variants of the same tiles
+  across biomes, e.g. grass ↔ snow).
