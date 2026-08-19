@@ -190,10 +190,12 @@ movement values in `movement-speeds.md`.
 - Art-pack verification for height: available wall/ramp tile configurations,
   which set the final level count and cleanup constraints (see
   `height-generation.md`).
-- Ocean generation details: sailing-layer scale, island approach transitions,
-  sea encounters/events.
-- How POI interiors (caves, crypts, buildings) load — separate maps vs.
-  in-world.
+- Ocean/sailing: architecture settled in `ocean-sailing.md` (one continuous
+  world grid, procedural ocean, vehicle-mode ship); open knobs are ship
+  speed, island gap sizing, and sea content.
+- POI interiors: majors hand-built; minor-interior generation deliberately
+  deferred (see `ocean-sailing.md` note) — placement/entrances already
+  specced, interiors attach later.
 - Exact biome list (art pack supports parallel variants of the same tiles
   across biomes, e.g. grass ↔ snow).
 - Art-pack check for water features: waterfall tiles (river cliff
