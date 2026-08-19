@@ -13,42 +13,77 @@ simplified **shells**; anchoring/docking is a load transition into the real
 island map, and boarding at a dock transitions back. The full islands are
 never rendered or streamed at sea.
 
-Both spaces share one coordinate system and tile scale: the world layout map
-places each island at fixed world offsets, so the world map UI is honest and
-"check the map, sail that heading" genuinely finds the island's shell.
+**Positional fidelity, not distance fidelity.** The sailing world runs at
+its own compressed **sea scale** relative to land (shells are smaller than
+their islands); the dock transition means the two scales are never visible
+at once. What must hold — and does, by construction — is that island
+*positions and bearings* match the viewable world map: the authored world
+layout map is the single source for the sailing world, the shell placements,
+and the map UI (rendered with a live ship marker). "Check the map, sail that
+heading" always finds the island because chart and sea are the same data.
 
 ### Island shells are derived, not authored
 
 A post-bake step generates each shell automatically from the island's
 finished terrain grids:
 
-1. Extract a **coastal ring** — everything within ~100 tiles of the shore
-   (the zoomed sailing camera sees ~60–80 tiles inland when hugging the
-   coast; 100 gives margin).
-2. Keep base terrain only: shallow water, beach, the first inland
-   grass/snow/rock tiles, cliff walls where cliffs meet the sea. Strip all
-   decorations, props, overhead layers, and POIs (dock locations excepted —
+1. Extract a **coastal ring** — the shoreline plus enough inland to fill the
+   zoomed sailing camera's view when hugging the coast.
+2. Keep base terrain only (logical grids): shallow water, beach, first
+   inland grass/snow/rock, cliff walls where cliffs meet the sea. No
+   decorations, props, overhead layers, or POIs (dock locations excepted —
    they must be visible to sail to).
-3. Void the interior entirely — never visible, zero tiles stored.
-4. Write as a small region-file set for the sailing world (~1 MB per island
-   compressed vs. tens of MB for the full island).
+3. **Downsample to sea scale** — majority-vote the logical terrain per
+   block, then **re-run the autotiler at shell scale**. Downsampling logic
+   and re-tiling (rather than scaling tiles) keeps coastlines clean; the
+   shell still faithfully shows which stretches are beach vs. cliff vs.
+   grass, just smaller. Docks get a guaranteed minimum shell footprint so
+   they stay visible and enterable at any scale.
+4. Void the interior entirely — never visible, zero tiles stored.
+5. Write as a small region-file set for the sailing world (~a megabyte per
+   island vs. tens for the full island).
 
 Derived means never stale: re-bake an island and its shell regenerates with
-the correct beaches/cliffs automatically. "Which edges have beach vs. cliff
-vs. grass" is answered by the real island's own data.
+the correct coastline automatically.
 
-### Ocean
+### Ocean Generation
 
-- **Purely procedural — zero storage.** Ocean chunks are generated on demand
-  (water + region-hashed content). The sailing world costs only its shells
-  on disk.
-- **Finite, not infinite.** The grid is bounded; the edge is an escalating
-  deterrent, not an invisible wall: worsening storm, a warning, then the
-  ship is turned back.
+Everything at sea is a deterministic function of (world seed, chunk coords),
+generated in a ring around the ship and discarded behind it — **zero
+storage**; the sailing world costs only its shells on disk.
+
+- **Water** — noise-varied tile variants so open sea isn't visually flat.
+- **Obstacles** — rocks, reefs, sandbars, wreckage via region-hash
+  placement; density controlled by zones painted in the world layout map
+  (calm near docks, treacherous where a strait should be feared).
+- **Sea content** — shipwrecks, drifting cargo, minor islets (exempt from
+  the island sizing minimum): region-hashed like land minor POIs. Once ship
+  speed is set, the minor-POI density rule can apply at sail so open water
+  never goes dead.
+- **Enemies/events** — spawn *data*, not entities (same as land):
+  distance-from-island danger bands (coastal water calm, deep water
+  dangerous) plus painted event zones for kraken-class encounters and story
+  moments; a runtime spawner manages live ships.
+- **Sea lanes: the reserved-path guarantee at sea.** A* lanes between all
+  dock pairs through the obstacle-zone map are reserved as obstacle-free
+  corridors and connectivity-validated per bake. A reef can narrow a lane;
+  it can never close one.
+
+### Bounds & Navigation
+
+- **Finite.** The layout map's bounds are the world: an **invisible barrier
+  plus an "Uncharted Seas — too dangerous to sail further" warning** at the
+  edge. (An escalating storm effect can layer on later as pure
+  presentation.)
 - **World layout is an authored control map** one level above the island
-  maps: island anchors/bounds, sea lanes, event zones.
-- **World map UI for free:** downsampled per-island biome grids composited
-  at world positions.
+  maps: island anchors/bounds, obstacle/danger zones, event zones.
+- **World map UI** renders the layout map with a live ship marker —
+  chart and sea are the same data, so map navigation is honest by
+  construction.
+- **Ocean sizing is time-based**, like the island sizing rule: pick a
+  crossing budget between neighboring islands (suggested 3–5 min at sail)
+  → gap ≈ budget × ship speed (e.g. ~3,000–5,500 tiles at ~18 tiles/sec).
+  A full archipelago's sailing world lands around 15k–25k tiles across.
 - Perf isolation: sailing never streams full island data; islands never
   stream ocean.
 
@@ -108,11 +143,10 @@ sail) can apply once ship speed is set.
 ## Open Knobs
 
 - **Ship speed(s)** — and whether wind/upgrades modify it; added to
-  `movement-speeds.md` when decided.
-- **Gap sizing rule** — pick a crossing-time budget between neighboring
-  islands (suggested 3–8 min at sail); gap distance = budget × ship speed.
-  The world-layout map is sized from this, same philosophy as the island
-  sizing rule.
+  `movement-speeds.md` when decided. Fixes the gap-sizing numbers in
+  Bounds & Navigation.
+- **Sea scale factor** — how compressed the sailing world is relative to
+  land (sets shell downsample ratio and effective ocean size).
 - Sea encounter/event tables and densities; ship combat design.
 - Whether/when to add free anchoring on top of docks-only (see Anchoring &
   Transitions).
