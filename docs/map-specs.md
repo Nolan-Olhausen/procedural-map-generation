@@ -116,7 +116,8 @@ Runs in this order:
    "cliff-north-edge"); a final pass maps logic → art tiles using standard
    blob/Wang autotiling. The art pack's parallel per-biome tile variants slot
    in here: one autotiling ruleset indexed by biome.
-5. **POI stamping** — two tiers:
+5. **POI stamping** (see `poi-placement.md`, incl. the minor-POI density
+   rule: nearest minor POI within 5–6 min travel from anywhere) — two tiers:
    - **Major POIs** (cities, story locations, major lakes): hand-built tile
      prefabs ("stamps") placed at authored anchor points; pipeline flattens
      the footprint and connects roads.
