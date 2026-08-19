@@ -106,8 +106,10 @@ Runs in this order:
 1. **Coastline refinement** — upscale the painted island silhouette, then
    perturb the edge with domain-warped fBm noise on a signed distance field:
    the authored shape with natural coves and beaches.
-2. **Terrain fields** — layered simplex noise for elevation/moisture within
-   control-map constraints; biome borders dithered as above.
+2. **Height generation** (see `height-generation.md`) — authored elevation
+   layer + per-biome noise, quantized to terraces with cliff walls, ramp
+   placement, and a hard accessibility guarantee; altitude then biases final
+   biome resolution (snowcaps).
 3. **Global features** — rivers traced downhill, lakes in basins, roads
    pathfound (A* with slope/terrain costs) between towns.
 4. **Autotiling** — pipeline works in *logical* terrain ("grass", "water",
@@ -156,8 +158,9 @@ movement values in `movement-speeds.md`.
   raw per 3-layer chunk; an 85M-tile island lands ~30–100 MB compressed.
   Not JSON for tile data (10+ GB as text) — JSON is for manifests, palettes,
   and POI tables only. Region granularity also makes re-bakes incremental.
-- Elevation authoring layer encoding (height design is next; biome control
-  map format is settled in `biome-generation.md`).
+- Art-pack verification for height: available wall/ramp tile configurations,
+  which set the final level count and cleanup constraints (see
+  `height-generation.md`).
 - Ocean generation details: sailing-layer scale, island approach transitions,
   sea encounters/events.
 - How POI interiors (caves, crypts, buildings) load — separate maps vs.
