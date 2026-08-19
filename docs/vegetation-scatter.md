@@ -61,10 +61,13 @@ Gen-4 Pokémon approach. No object entities, no y-sorting.
   decor tiles (walkable); boulders = single collision tiles.
 - **Collision** is a per-tile-ID property in the tile database, not a
   separate baked layer.
-- **Grid snap & overlap:** prefabs snap to the tile grid. v1 rule: canopies
-  must not overlap (Poisson radius ≥ canopy width). If the art pack has
-  interlocking dense-forest patterns, "dense grove" becomes its own
-  multi-tree prefab later.
+- **Grid snap & overlap:** prefabs snap to the tile grid. The art pack
+  includes tree-overlap tiles, so the scatterer has two placement modes:
+  normal spacing (canopy-width Poisson radius) for scattered trees in open
+  terrain, and tight interlocked placement using the overlap tiles inside
+  high-density grove clumps — giving dense Pokémon-style wall-of-trees
+  forests. The clump noise decides where groves are; density selects the
+  mode.
 
 Accepted trade-off: pure tiles means props have no individual object
 identity. Future harvestable/cuttable props are handled as tile edits in the
