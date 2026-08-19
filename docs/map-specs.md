@@ -190,9 +190,10 @@ movement values in `movement-speeds.md`.
 - Art-pack verification for height: available wall/ramp tile configurations,
   which set the final level count and cleanup constraints (see
   `height-generation.md`).
-- Ocean/sailing: architecture settled in `ocean-sailing.md` (one continuous
-  world grid, procedural ocean, vehicle-mode ship); open knobs are ship
-  speed, island gap sizing, and sea content.
+- Ocean/sailing: architecture settled in `ocean-sailing.md` (separate
+  sailing world with auto-derived island shells, procedural ocean,
+  vehicle-mode ship, dock transitions); open knobs are ship speed, island
+  gap sizing, and sea content.
 - POI interiors: majors hand-built; minor-interior generation deliberately
   deferred (see `ocean-sailing.md` note) — placement/entrances already
   specced, interiors attach later.

@@ -5,31 +5,52 @@ open knobs. Reference feel: Pirates of the Caribbean Online (now The Legend
 of Pirates Online) — walkable ship decks, zoomed-out sailing, broadsides,
 anchoring at islands.
 
-## Core Architecture: One Continuous World Space
+## Core Architecture: Two Spaces — Sailing World + Island Maps
 
-The archipelago is **one world-scale tile grid**. Each island's baked region
-files sit at fixed world offsets; everything between is ocean. Requirements
-this satisfies:
+The **sailing world** and the **island maps** are separate spaces (the
+Pirates Online model). Islands appear in the sailing world only as
+simplified **shells**; anchoring/docking is a load transition into the real
+island map, and boarding at a dock transitions back. The full islands are
+never rendered or streamed at sea.
 
-- Islands are visible from the sea (shoreline + start of inland) and are
-  approached, not loaded — no scene breaks at sea.
-- The world map is honest: islands have real coordinates, and "check the
-  map, sail that heading" genuinely finds them.
+Both spaces share one coordinate system and tile scale: the world layout map
+places each island at fixed world offsets, so the world map UI is honest and
+"check the map, sail that heading" genuinely finds the island's shell.
 
-**Ocean is purely procedural — zero storage.** Ocean chunks are generated on
-demand (water tiles + region-hashed content), so a mostly-ocean
-60k×60k-tile world costs exactly what its islands cost on disk. Sailing uses
-the same chunk-streaming system as walking with a larger load radius.
+### Island shells are derived, not authored
 
-- **Finite, not infinite.** The world grid is bounded. The edge is an
-  escalating deterrent, not an invisible wall: worsening storm, a warning,
-  then the ship is turned back — a bounded grid that reads as a boundless
-  sea.
+A post-bake step generates each shell automatically from the island's
+finished terrain grids:
+
+1. Extract a **coastal ring** — everything within ~100 tiles of the shore
+   (the zoomed sailing camera sees ~60–80 tiles inland when hugging the
+   coast; 100 gives margin).
+2. Keep base terrain only: shallow water, beach, the first inland
+   grass/snow/rock tiles, cliff walls where cliffs meet the sea. Strip all
+   decorations, props, overhead layers, and POIs (dock locations excepted —
+   they must be visible to sail to).
+3. Void the interior entirely — never visible, zero tiles stored.
+4. Write as a small region-file set for the sailing world (~1 MB per island
+   compressed vs. tens of MB for the full island).
+
+Derived means never stale: re-bake an island and its shell regenerates with
+the correct beaches/cliffs automatically. "Which edges have beach vs. cliff
+vs. grass" is answered by the real island's own data.
+
+### Ocean
+
+- **Purely procedural — zero storage.** Ocean chunks are generated on demand
+  (water + region-hashed content). The sailing world costs only its shells
+  on disk.
+- **Finite, not infinite.** The grid is bounded; the edge is an escalating
+  deterrent, not an invisible wall: worsening storm, a warning, then the
+  ship is turned back.
 - **World layout is an authored control map** one level above the island
-  maps: a world-scale image placing island anchors/bounds, sea lanes, and
-  event zones.
+  maps: island anchors/bounds, sea lanes, event zones.
 - **World map UI for free:** downsampled per-island biome grids composited
   at world positions.
+- Perf isolation: sailing never streams full island data; islands never
+  stream ocean.
 
 ## Sailing Camera
 
@@ -59,14 +80,22 @@ its deck). Two modes with the **wheel interaction as the seam**:
 ship in motion is a notorious tile-engine tar pit and single-player loses
 almost nothing by cutting it.
 
-## Anchoring
+## Anchoring & Transitions
 
-- Anchor anywhere in the **shallow-water band** ringing each island (the
-  coastline pass already produces beaches/shallows). The player steps off
-  onto the beach; the ship persists at its anchored world position in the
-  save.
-- Major port cities additionally include proper docks in their prefabs —
-  free-explorer anchoring and civilized harbor arrivals both work.
+**Docks are hand-placed major POI pieces** on each island, present both in
+the real island map (boarding point) and marked on the island's shell
+(sail-to target). They are the seam between the two spaces.
+
+- **v1 (recommended): docks-only.** Arrival and departure both happen at
+  docks — sail into a dock zone on the shell → load the island map at the
+  dock; interact with the ship at the dock → load the sailing world. The
+  ship is always "at the dock you arrived at." Symmetric, no stranded-ship
+  states, pure Pirates Online.
+- **Later upgrade: free anchoring.** Anchor in any shallow band → spawn on
+  the nearest beach; the island map spawns a re-boarding marker
+  (rowboat/anchored-ship prop) at that spot, and the anchor position
+  persists in the save. Adds wild-coast exploration freedom at the cost of
+  extra state; fits on top of docks-only without redesign.
 
 ## Ocean Content (structure now, detail later)
 
@@ -85,7 +114,8 @@ sail) can apply once ship speed is set.
   The world-layout map is sized from this, same philosophy as the island
   sizing rule.
 - Sea encounter/event tables and densities; ship combat design.
-- Anchoring polish: rowboat vs. direct beach step-off; re-boarding.
+- Whether/when to add free anchoring on top of docks-only (see Anchoring &
+  Transitions).
 
 ## Interiors (noted here as the other deferred thread)
 
