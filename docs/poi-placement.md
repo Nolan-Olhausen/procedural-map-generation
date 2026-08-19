@@ -7,9 +7,24 @@ design.
 POIs come in two tiers (see `map-specs.md`):
 
 - **Major POIs** — cities, story locations, key lakes: hand-built tile
-  prefabs placed at authored anchor points in the control map. The pipeline
-  flattens/clears the footprint and connects roads. Not governed by the
-  density rule below (their placement is story-driven).
+  prefabs placed at authored anchor points in the control map. Not governed
+  by the density rule below (their placement is story-driven). No generation
+  system — just stamps, plus three pieces of glue:
+  1. **Prefab metadata** (small sidecar per prefab): footprint mask (any
+     shape), **entry points**, and terrain expectation (default "flatten
+     footprint to one level"; special cases may declare a level profile,
+     e.g. a cliff-side fort). Entry points are what the reserved path
+     network, road pass, and connectivity/coverage checks consume — declare
+     them and every existing guarantee extends to majors automatically.
+  2. **Pass order: stamp after height, before scatter.** Pipeline levels
+     the footprint, applies the stamp over all layers in the mask, and all
+     downstream passes (ramps, reserved paths, scatter, minor POIs) treat
+     the footprint as occupied — no hand-cleanup of scatter collisions.
+  3. **Manual fixes live in a patch layer, never in baked output.**
+     Hand-touch-ups around a stamp are authored as per-island override
+     files applied as the pipeline's final step each bake. Editing baked
+     chunk files directly means losing the fixes on the next regeneration;
+     patches make re-baking always safe.
 - **Minor POIs** — free-roam content: camps, crypts, ruins, ponds, shrines,
   ransacked villages, caves, etc. Procedurally placed, governed by the
   density rule.
