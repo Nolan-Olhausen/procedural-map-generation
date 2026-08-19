@@ -107,31 +107,55 @@ Runs in this order:
    perturb the edge with domain-warped fBm noise on a signed distance field:
    the authored shape with natural coves and beaches.
 2. **Height generation** (see `height-generation.md`) — authored elevation
-   layer + per-biome noise, quantized to terraces with cliff walls, ramp
-   placement, and a hard accessibility guarantee; altitude then biases final
-   biome resolution (snowcaps).
-3. **Global features** — rivers traced downhill, lakes in basins, roads
-   pathfound (A* with slope/terrain costs) between towns.
-4. **Autotiling** — pipeline works in *logical* terrain ("grass", "water",
-   "cliff-north-edge"); a final pass maps logic → art tiles using standard
-   blob/Wang autotiling. The art pack's parallel per-biome tile variants slot
-   in here: one autotiling ruleset indexed by biome.
-5. **POI stamping** (see `poi-placement.md`, incl. the minor-POI density
-   rule: nearest minor POI within 5–6 min travel from anywhere) — two tiers:
-   - **Major POIs** (cities, story locations, major lakes): hand-built tile
-     prefabs ("stamps") placed at authored anchor points; pipeline flattens
-     the footprint and connects roads.
-   - **Minor POIs** (camps, crypts, ponds, shrines, ransacked villages):
-     placed Minecraft-style — deterministically hash each map region to decide
-     spawn/variant/rotation, with minimum-spacing and valid-terrain
-     constraints. 5–10 hand-made variants per type gives variety without
-     hand-placement.
-6. **Scatter pass** (see `vegetation-scatter.md`) — a reserved path network
-   (linking plateau ramps, POI entrances, and the coast) is computed first
-   and kept prop-free, so accessibility holds by construction; then props
-   scatter via clumped noise + Poisson-disk spacing, with biome-band density
-   crossfades. Props are tile prefabs (tree canopies on an overhead layer),
-   not entities.
+   layer + per-biome noise, quantized to terraces with cliff walls and
+   steepness-scaled ramp placement.
+3. **Rivers & lakes** — **authored, like biomes**: river centerlines and
+   lake polygons painted in the control map. The pipeline makes them
+   plausible: carve a shallow valley along each river course, flatten lake
+   basins to one level, and resolve cliff crossings (waterfall tiles if the
+   art pack has them — inventory item — else reroute the carved cliff).
+4. **Biome resolution** (see `biome-generation.md`) — final per-tile biome
+   grid via distance-transform blend bands + clumped dithering, with
+   altitude rules biasing the result (snowcaps).
+5. **POI stamping** (see `poi-placement.md`) — major POIs stamped at
+   authored anchors (footprint leveled); minor POIs region-hash placed
+   under the density rule (nearest minor POI within 5–6 min travel from
+   anywhere, coverage-repaired per bake).
+6. **Reserved path network** (see `vegetation-scatter.md`) — A* web linking
+   plateau ramps, POI entrances, and the coast; reserved tiles stay
+   prop-free. Rivers cut walkability, so this pass also places
+   **bridges/fords** exactly as ramps are placed: guaranteed where the
+   network needs them, sparse elsewhere (river crossings are prime
+   detour-friction per the sizing rule). Accessibility holds by
+   construction; a final flood-fill verifies.
+7. **Roads** — visible dirt/cobble paths pathfound (A*, slope- and
+   crossing-averse costs) between major POI entrances, drawn with road
+   autotiles, preferring wide gentle ramps and placed bridges.
+8. **Scatter pass** (see `vegetation-scatter.md`) — props via clumped noise
+   + Poisson-disk spacing, biome-band density crossfades, never on reserved
+   tiles. Props are tile prefabs (tree canopies on an overhead layer), not
+   entities.
+9. **Enemy spawn zones** — baked as *data, not entities*: zones/points with
+   enemy table, density, level range, and respawn rules (biome-driven,
+   sparser than vegetation, denser near hostile minor POIs, suppressed near
+   roads/towns). The runtime spawner manages live enemies; cleared-area
+   state lives in the save delta layer.
+10. **Autotiling** — pipeline works in *logical* terrain ("grass", "water",
+    "cliff-north-edge"); this pass maps logic → art tiles using standard
+    blob/Wang autotiling, with the art pack's per-biome variant arrays
+    indexed by biome.
+11. **Patch layer** — authored per-island override files applied last, every
+    bake (manual fixes never live in baked output; see `poi-placement.md`).
+
+**Hand-authored, validated content (not generated):** NPCs are hand-placed
+with authored movement routes (they carry dialogue/interaction), living in
+POI prefabs or the patch layer; the bake validates every NPC route against
+the walkability grid so a terrain change that breaks a route is a bake error,
+not an in-game NPC walking into a wall.
+
+**Explicitly not map generation:** weather is a runtime system reading the
+baked biome grid (snow falls in snow biomes); designed with gameplay systems
+later.
 
 ### 5. Runtime
 
@@ -144,7 +168,7 @@ Runs in this order:
 
 ## First Milestone: Map Preview Tool
 
-Before any in-engine work: a tool that runs pipeline steps 1–3 and renders a
+Before any in-engine work: a tool that runs pipeline steps 1–4 and renders a
 whole-island PNG (1 px per tile) in seconds. World generation quality is a
 function of iteration speed — tweak parameters/control map, regenerate, look.
 Then add later pipeline passes, then the chunk-file exporter, and only then
@@ -172,3 +196,7 @@ movement values in `movement-speeds.md`.
   in-world.
 - Exact biome list (art pack supports parallel variants of the same tiles
   across biomes, e.g. grass ↔ snow).
+- Art-pack check for water features: waterfall tiles (river cliff
+  crossings), bridge/ford tiles, road autotiles.
+- Enemy spawn zone details (enemy tables, density/level rules, respawn
+  timers) — designed with the combat/enemy systems.
