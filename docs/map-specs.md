@@ -125,8 +125,12 @@ Runs in this order:
      spawn/variant/rotation, with minimum-spacing and valid-terrain
      constraints. 5–10 hand-made variants per type gives variety without
      hand-placement.
-6. **Scatter pass** — trees, rocks, flowers via noise thresholds +
-   Poisson-disk spacing so vegetation clumps naturally.
+6. **Scatter pass** (see `vegetation-scatter.md`) — a reserved path network
+   (linking plateau ramps, POI entrances, and the coast) is computed first
+   and kept prop-free, so accessibility holds by construction; then props
+   scatter via clumped noise + Poisson-disk spacing, with biome-band density
+   crossfades. Props are tile prefabs (tree canopies on an overhead layer),
+   not entities.
 
 ### 5. Runtime
 
