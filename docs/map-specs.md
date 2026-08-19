@@ -30,17 +30,48 @@ story world. Therefore:
   ocean chunks are generated from a trivial function rather than stored.
   Expect tens-to-hundreds of MB total, not GB.
 
-### 2. Scale
+### 2. Scale — The Island Sizing Rule
 
-- **Tile size:** 16×16 px.
-- **Island size target:** ~45 minutes to walk across at 3.5 tiles/sec →
-  **~9,400 tiles across** *(provisional)* for a full-size island (~85M tiles).
-  See `movement-speeds.md` for crossing times at each gait.
-- Straight-line time is the design target; terrain friction (cliffs, rivers,
-  encounters, POIs) stretches experienced traversal well beyond it, as in
-  Skyrim.
-- Islands may vary in size; a half-scale **starter island** is both a common
-  structure and the natural test bed for the generation pipeline.
+**Tile size:** 16×16 px.
+
+There is exactly **one sizing rule**, applied to every major island:
+
+> The island's two farthest straight points — measured along a straight
+> vertical or straight horizontal line (axis-aligned, no diagonals) — must
+> take **no less than 45 minutes and no more than 60 minutes** to walk with a
+> clear, uninterrupted path (no terrain or obstacles factored in), at player
+> walk speed (3.5 tiles/sec).
+
+In tile terms, the island's longest axis-aligned span must be:
+
+| Bound | Time (walk) | Tiles  |
+| ----- | ----------- | ------ |
+| Min   | 45 min      | 9,450  |
+| Max   | 60 min      | 12,600 |
+
+**Friction target (applies regardless of where the span lands in that
+range):** with terrain and obstacles in place — mountains to navigate through
+or around, lakes to skirt, rivers with sparse crossings — the *actual*
+traversal between those two points should take **75–100% longer** than the
+unobstructed time (~79–120 minutes experienced).
+
+Both halves of the rule are automated pipeline checks, reported by the map
+preview tool on every regeneration:
+
+- **Span check:** longest axis-aligned land span within bounds (9,450–12,600).
+- **Friction check:** A* walk-speed path between the two extreme points vs.
+  the straight-line distance; the detour factor must land in **1.75×–2.0×**.
+  Below 1.75 → generator/control map needs more obstruction between the
+  extremes; above 2.0 → traversal is too punishing.
+
+Notes:
+
+- The 45/60-minute bounds are tunable; the 75–100% friction target holds no
+  matter what the bounds are set to.
+- **Minor islands** (islets, lighthouses, smuggler's coves, other sailing
+  filler) are exempt from the minimum span — the rule governs major islands.
+  *(Assumption to confirm.)*
+- See `movement-speeds.md` for crossing times at other gaits.
 - The **ocean** provides the "vast world" feeling nearly for free — procedural
   water + encounters, no authored content per tile. Fewer, denser islands beat
   one giant continent: every tile not generated is a tile that doesn't need to

@@ -55,20 +55,21 @@ Horses have two gaits only (walk and sprint); no intermediate gallop tier.
 
 ## Traversal-Time Implications
 
-For an island sized at ~45 minutes to cross at player walk (~9,400 tiles, see
-`map-specs.md`):
+Per the island sizing rule (see `map-specs.md`), a major island's longest
+axis-aligned span is a 45–60 minute unobstructed walk (9,450–12,600 tiles):
 
-| Gait          | Straight-line crossing time |
-| ------------- | --------------------------- |
-| Player walk   | ~45 min                     |
-| Horse walk    | ~39 min                     |
-| Player sprint | ~29 min                     |
-| Horse sprint  | ~22 min                     |
+| Gait          | Unobstructed crossing time |
+| ------------- | -------------------------- |
+| Player walk   | 45–60 min                  |
+| Horse walk    | ~39–53 min                 |
+| Player sprint | ~29–38 min                 |
+| Horse sprint  | ~22–30 min                 |
 
-Real traversal will run longer due to terrain friction (cliffs, rivers,
-encounters, POI distractions) — that friction is what stretches Skyrim's
-~30–45 min straight-line walk into the 1.5–2 hour experienced crossing, and we
-rely on the same effect rather than inflating raw map size.
+Real traversal is designed to run **75–100% longer** than these unobstructed
+times due to terrain friction (mountains, lakes, rivers, encounters, POI
+distractions) — the same effect that stretches Skyrim's ~30–45 min
+straight-line walk into a 1.5–2 hour experienced crossing. This friction
+target is part of the island sizing rule in `map-specs.md`.
 
 ## Open Tuning Notes (for the prototype)
 
