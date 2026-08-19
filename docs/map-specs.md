@@ -79,26 +79,23 @@ Notes:
 - Each island is its own map file/space; the ocean is its own layer connecting
   them.
 
-### 3. Authoring model: coarse control map, not per-tile painting
+### 3. Authoring model: exact-color control map, generated blending
 
-The old 1 pixel = 1 tile color-map approach is replaced by a **low-res control
-map**: 1 pixel = one region of roughly 16×16 to 32×32 tiles *(resolution is a
-knob, and can vary per area)*. For a ~9,400-tile island that's a paintable
-~300–600 px image.
+Full design: **`biome-generation.md`**. In brief:
 
-- Pixel color/channels encode **intent**: land vs. sea, biome, rough
-  elevation, and anchor points for major POIs.
-- **Pixel color = "biome pressure in this area," not "biome of this tile."**
-  Per-tile biome assignment is an *output* of the pipeline.
-- Smooth biome blending does **not** come from image resolution. It comes
-  from, in order:
-  1. **Interpolation** — sample the control map bilinearly so borders become
-     continuous gradients at tile granularity (e.g. "68% forest / 32% snow").
-  2. **Noise dithering** — each tile resolves its blend value against a noise
-     field, producing organic interlocking frontiers (snow fingers into
-     forest) instead of hard lines or mushy gradients.
-  3. **Autotile transition pieces** from the art pack clean up seams at the
-     individual-tile level.
+- Each island is authored as an **indexed-color control map** painted with a
+  pixel (aliased) brush — every pixel an exact palette color, hard edges,
+  default scale **1 px = 4 tiles** (a max island ≈ 3,150 px canvas; scale is
+  a per-island knob).
+- Pixel color = biome region; a reserved color = water. An island manifest
+  (JSON) defines the palette, per-pair blend band widths, and forbidden
+  adjacencies. Unknown colors hard-fail validation.
+- **All blending is generated, none is painted:** a distance transform on the
+  drawn boundaries produces blend weights within configurable per-pair band
+  widths, then clumped low-frequency noise dithering interleaves the two
+  biomes' pure tiles as coherent patches whose ratio shifts across the band.
+  The art pack has no transition tiles and doesn't need them — the gradient
+  is statistical, reinforced by decoration-density crossfades.
 - Per-tile overrides remain available where exact control is needed (that's
   what POI stamps are).
 
@@ -153,8 +150,14 @@ movement values in `movement-speeds.md`.
 
 - Engine confirmation (Unity assumed; the offline pipeline/tooling can be
   engine-agnostic regardless).
-- Chunk dimensions and on-disk chunk file format.
-- Control map channel layout (how biome/elevation/anchors are encoded).
+- On-disk map format — proposed, to confirm: Minecraft-style region files
+  (32×32-chunk regions, 32×32-tile chunks, layers as flat u16 tile-ID arrays,
+  per-chunk zstd/deflate compression, position implicit from index). ~6 KB
+  raw per 3-layer chunk; an 85M-tile island lands ~30–100 MB compressed.
+  Not JSON for tile data (10+ GB as text) — JSON is for manifests, palettes,
+  and POI tables only. Region granularity also makes re-bakes incremental.
+- Elevation authoring layer encoding (height design is next; biome control
+  map format is settled in `biome-generation.md`).
 - Ocean generation details: sailing-layer scale, island approach transitions,
   sea encounters/events.
 - How POI interiors (caves, crypts, buildings) load — separate maps vs.
